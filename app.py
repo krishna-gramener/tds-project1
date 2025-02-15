@@ -51,7 +51,7 @@ def execute_task(command: str, execution_type: str):
     try:
         
         if not is_safe_command(command):
-            return {"status": "error", "error": "Command violates security constraints"}
+            raise HTTPException(status_code=403, detail="Access Denied")
     
         if execution_type == "shell":
             commands = command.split(';')  # Split commands by ';'
@@ -108,11 +108,10 @@ async def run_task(task: str):
     
     components = task.split()  # You may want to use a more sophisticated split based on your task structure
 
-    # Check each component for unauthorized paths
     for component in components:
         # Check if the component looks like a path
-        if (component.startswith('/')) and ('/data/' not in component):
-            return {"status": "error", "error": "Access Denied"}
+        if component.startswith('/') and ('/data/' not in component):
+            raise HTTPException(status_code=403, detail="Access Denied")
 
     prompt = r'''
     
