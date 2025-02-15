@@ -156,13 +156,13 @@ For shell if its multiple commands, seperate them by ;
 **Handling Images**
     - Convert images to Base64 encoding.    
     - Do not overwrite existing images.
-    - Include "type": "image_url" and the encoded image in the JSON response.
+    - Include **"type": "image_url"** and the encoded image in the JSON response.
     - If image processing or text extraction via LLM is required,use:
-        API: https://llmfoundry.straive.com/gemini/v1beta/openai/chat/completions
+        API: "/azure/openai/deployments/gpt-4o-mini/chat/completions?api-version=2025-01-01-preview"
         Auth: Bearer {os.environ['AIPROXY_TOKEN']}
-        Model: gemini-1.5-pro-latest  
         Handle API errors with appropriate error messages.
-        
+    write code to pass the image to the API and retrieve the relevant text.
+
 **Output Format**
     Return only valid JSON in the following format (no markdown or code blocks):
     json
