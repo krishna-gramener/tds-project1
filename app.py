@@ -59,7 +59,7 @@ def execute_task(command: str, execution_type: str):
             with tempfile.NamedTemporaryFile(delete=False, suffix='.bat', mode='w', encoding='utf-8') as temp_file:
                 temp_file.write(script_content)  # Write the script to a file
                 temp_script_path = temp_file.name
-                print(temp_script_path)
+                
             # Execute the script using cmd.exe
             result = subprocess.run(['cmd.exe', '/c', temp_script_path], capture_output=True, text=True)
             os.remove(temp_script_path)
@@ -77,14 +77,7 @@ def execute_task(command: str, execution_type: str):
             install_missing_dependencies(command)
 
             # Execute the Python script
-            result = subprocess.run(["python", temp_script_path], capture_output=True, text=True)
-
-            # Cleanup: Remove temp script after execution (this is allowed as it is a temporary file)
-            os.remove(temp_script_path)
-        else:
-            return {"status": "error", "error": "Invalid execution type"}
-
-        if result.returncode == 0:
+            result = subprocess.run(["python", temp_script_path], capture_output=True, text=True) # Cleanup: Remove temp script after execution (this is allowed as it is a temporary file) os.remove(temp_script_path) else: return {"status": "error", "error": "Invalid execution type"} if result.returncode == 0:
             return {"status": "success", "output": result.stdout.strip()}
         else:
             return {"status": "error", "error": result.stderr.strip()}
@@ -103,7 +96,6 @@ def install_missing_dependencies(python_code: str):
     missing_modules = []
     for module in matches:
         try:
-            print("Importing :",module)
             __import__(module)
         except ImportError:
             missing_modules.append(module)
@@ -157,8 +149,9 @@ For shell if its multiple commands, seperate them by ;
     - Convert images to Base64 encoding.    
     - Do not overwrite existing images.
     - Include **"type": "image_url"** and the encoded image in the JSON response.
-    - If image processing or text extraction via LLM is required,use:
-        API: "/azure/openai/deployments/gpt-4o-mini/chat/completions?api-version=2025-01-01-preview"
+    - If image processing or text extraction  via LLM is required,use:
+        For Images API: "https://llmfoundry.straive.com/azure/openai/deployments/gpt-4o-mini/chat/completions?api-version=2025-01-01-preview"
+        For Text API: "https://llmfoundry.straive.com/openai/v1/chat/completions" and model as "gpt-4o-mini"
         Auth: Bearer {os.environ['AIPROXY_TOKEN']}
         Handle API errors with appropriate error messages.
     write code to pass the image to the API and retrieve the relevant text.
@@ -180,7 +173,6 @@ For shell if its multiple commands, seperate them by ;
         rjson = response.json()  # Convert response to dictionary
         response_text = rjson["choices"][0]["message"]["content"].strip()
 
-        print("Response Text:",response_text)
         if response_text.startswith("```json"):
             response_text = response_text[7:].strip()
         if response_text.endswith("```"):
@@ -217,7 +209,7 @@ async def read_file(path: str = Query(..., description="File path to read")):
             raise HTTPException(status_code=403, detail="Access Denied")
         
         absolute_path = os.path.join("C:/", path.lstrip('/'))  # Remove leading '/' and join
-        print("Absolute path",absolute_path)
+        
         if not os.path.exists(absolute_path):
             raise HTTPException(status_code=404, detail="File not found.")
 
