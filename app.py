@@ -188,7 +188,7 @@ For shell if its multiple commands, seperate them by ;
         for component in components:
             # Check if the component looks like a path
             if component.startswith('C:\\') and 'C:\\data\\' not in component:
-                return {"status": "error", "error": "Access Denied"}
+                raise HTTPException(status_code=403, detail="Access Denied")
         print('Generated Command:',step["command"])
 
         result = execute_task(step["command"], step["type"])
