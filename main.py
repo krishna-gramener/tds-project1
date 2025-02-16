@@ -17,7 +17,6 @@ app = FastAPI()
 
 # Load OpenAI API key
 AIPROXY_TOKEN = os.getenv("AIPROXY_TOKEN")
-
 if not AIPROXY_TOKEN:
     raise ValueError("AIPROXY_TOKEN is not set. Please check your .env file.")
 
@@ -116,6 +115,7 @@ You are a DataWorks automation agent that generates fully executable Python or W
 Your response must always be valid JSON and contain syntactically correct, runnable code.
 Make sure the Python scripts are fully executable and the shell commands are properly formatted.
 The python script it should be a ***SINGLE SCRIPT with ACTUAL NEW LINES*** and ***SHOULD NOT CONTAIN '\n'***.
+If asked to RUN any PYTHON file, do using **uv run ONLY** ex- uv run 
 For shell if its multiple commands, seperate them by ;
 **TASKS**
     - Data processing, API fetching (save under C:\data), Git (clone/commit under C:\data), web scraping, image/audio processing, format conversions, CSV/JSON filtering, external script execution.
@@ -148,7 +148,7 @@ For shell if its multiple commands, seperate them by ;
     - If image processing or text extraction  via LLM is required,use:
         For Images API: "https://llmfoundry.straive.com/azure/openai/deployments/gpt-4o-mini/chat/completions?api-version=2025-01-01-preview"
         For Text API: "https://llmfoundry.straive.com/openai/v1/chat/completions" and model as "gpt-4o-mini"
-        Auth: Bearer {os.environ['AIPROXY_TOKEN']}
+        Auth: Bearer {os.environ['$AIPROXY_TOKEN']}
         Handle API errors with appropriate error messages.
     write code to pass the image to the API and retrieve the relevant text.
 
@@ -184,12 +184,11 @@ For shell if its multiple commands, seperate them by ;
         step["command"] = convert_path_to_windows(step["command"])
         # Check for paths in the generated code
         components = step["command"].split()  # Split the generated code into components
-
         for component in components:
             # Check if the component looks like a path
-            if component.startswith('C:\\') and 'C:\\data\\' not in component:
+            if component.startswith('C:\\') and 'C:\\data' not in component:
                 raise HTTPException(status_code=403, detail="Access Denied")
-        print('Generated Command:',step["command"])
+        
 
         result = execute_task(step["command"], step["type"])
         return {"status": "completed", "results": [result]}
@@ -207,7 +206,7 @@ async def read_file(path: str = Query(..., description="File path to read")):
         if not re.match(r'^/data/.*', path):
             raise HTTPException(status_code=403, detail="Access Denied")
         
-        absolute_path = os.path.join("C:/", path.lstrip('/'))  # Remove leading '/' and join
+        absolute_path = os.path.abspath(path) 
         
         if not os.path.exists(absolute_path):
             raise HTTPException(status_code=404, detail="File not found.")
