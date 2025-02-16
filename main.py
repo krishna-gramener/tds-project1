@@ -17,13 +17,10 @@ app = FastAPI()
 
 # Load OpenAI API key
 AIPROXY_TOKEN = os.getenv("AIPROXY_TOKEN")
-OPENAI_BASE_URL = os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1")
 
 if not AIPROXY_TOKEN:
     raise ValueError("AIPROXY_TOKEN is not set. Please check your .env file.")
 
-openai.api_key = AIPROXY_TOKEN
-openai.api_base = OPENAI_BASE_URL
 
 def is_safe_command(command: str) -> bool:
     """Ensures the command does not access data outside C:\\data and does not delete files."""
@@ -165,7 +162,7 @@ For shell if its multiple commands, seperate them by ;
 '''
     try:
         
-        response = requests.post("https://llmfoundry.straive.com/openai/v1/chat/completions",headers={"Authorization": f"Bearer {os.environ['AIPROXY_TOKEN']}:tds-project"},json={"model": "gpt-4o-mini", "messages": [
+        response = requests.post("https://llmfoundry.straive.com/openai/v1/chat/completions",headers={"Authorization": f"Bearer {AIPROXY_TOKEN}"},json={"model": "gpt-4o-mini", "messages": [
                 {"role": "system", "content": prompt},
                 {"role": "user", "content": task}
             ]})
