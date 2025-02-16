@@ -171,7 +171,10 @@ For shell if its multiple commands, seperate them by ;
             ]})
         rjson = response.json()  # Convert response to dictionary
         response_text = rjson["choices"][0]["message"]["content"].strip()
-
+       
+        if "choices" not in rjson:
+             raise HTTPException(status_code=500, detail=f"Unexpected API response: {rjson}")
+        
         if response_text.startswith("```json"):
             response_text = response_text[7:].strip()
         if response_text.endswith("```"):
