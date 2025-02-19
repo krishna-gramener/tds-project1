@@ -2,7 +2,6 @@ from dotenv import load_dotenv
 from fastapi import FastAPI, Query, HTTPException, Request
 from fastapi.responses import JSONResponse, PlainTextResponse
 import os
-import openai
 import subprocess
 import json
 import tempfile
@@ -48,16 +47,17 @@ def execute_task(command: str, execution_type: str):
         
         if not is_safe_command(command):
             raise HTTPException(status_code=403, detail="Access Denied")
-    
+
         if execution_type == "shell":
             commands = command.split(';')  # Split commands by ';'
             script_content = '\n'.join(cmd.strip() for cmd in commands)  # Join commands into a script
-            with tempfile.NamedTemporaryFile(delete=False, suffix='.bat', mode='w', encoding='utf-8') as temp_file:
+            with tempfile.NamedTemporaryFile(delete=False, suffix='.sh' if os.name != 'nt' else '.bat', mode='w', encoding='utf-8') as temp_file:
                 temp_file.write(script_content)  # Write the script to a file
                 temp_script_path = temp_file.name
                 
-            # Execute the script using cmd.exe
-            result = subprocess.run(['cmd.exe', '/c', temp_script_path], capture_output=True, text=True)
+            # Execute the script using the appropriate shell
+            shell_command = ['bash', temp_script_path] if os.name != 'nt' else ['cmd.exe', '/c', temp_script_path]
+            result = subprocess.run(shell_command, capture_output=True, text=True)
             os.remove(temp_script_path)
             return result.stdout  # Return the output of the script execution
         
@@ -73,10 +73,14 @@ def execute_task(command: str, execution_type: str):
             install_missing_dependencies(command)
 
             # Execute the Python script
-            result = subprocess.run(["python", temp_script_path], capture_output=True, text=True) # Cleanup: Remove temp script after execution (this is allowed as it is a temporary file) os.remove(temp_script_path) else: return {"status": "error", "error": "Invalid execution type"} if result.returncode == 0:
-            return {"status": "success", "output": result.stdout.strip()}
+            result = subprocess.run(["python", temp_script_path], capture_output=True, text=True)
+            os.remove(temp_script_path)  # Cleanup: Remove temp script after execution
+            if result.returncode == 0:
+                return {"status": "success", "output": result.stdout.strip()}
+            else:
+                return {"status": "error", "error": result.stderr.strip()}
         else:
-            return {"status": "error", "error": result.stderr.strip()}
+            return {"status": "error", "error": "Invalid execution type"}
     except Exception as e:
         return {"status": "error", "error": str(e)}
 
@@ -119,12 +123,12 @@ If asked to RUN any PYTHON file, do using **uv run ONLY** ex- uv run
 For shell if its multiple commands, seperate them by ;
 **TASKS**
     - Data processing, API fetching (save under C:\data), Git (clone/commit under C:\data), web scraping, image/audio processing, format conversions, CSV/JSON filtering, external script execution.
-    - Should generate only PYTHON or Windows CMD commands.
+    - Should generate only **PYTHON** or **Windows CMD** commands.
 **Rules**
 - Executable Code Only: The output must be fully executable Python code or shell commands.
 - Valid Syntax: Ensure scripts are syntactically correct with no syntax errors (e.g., unterminated strings, missing brackets).
 - [IMPORTANT] Newline Handling:
-    - Python scripts must USE ACTUAL NEWLINES, not \n inside strings.
+    - Python scripts must **USE ACTUAL NEWLINES**, not \n inside strings.
     - For multi-line strings, use triple quotes (""").
     - DO NOT generate Python code as a single string containing \n characters.
     - Every line of code should be written as a separate line, just like in a normal script.
@@ -133,7 +137,7 @@ For shell if its multiple commands, seperate them by ;
     Always use double quotes (") for file paths and strings in Python.
     Use raw strings (r"") for file paths.
     DO NOT USE '\n' inside strings.
-- File Operations: Perform all operations on files inside C:\data\.
+- File Operations: In case of creating a new file, the path of input and output files are same. Make sure to capture the both input and output paths from query accurately.
 - Libraries & Dependencies
     Use appropriate libraries:
         - pillow for image processing
@@ -146,8 +150,8 @@ For shell if its multiple commands, seperate them by ;
     - Do not overwrite existing images.
     - Include **"type": "image_url"** and the encoded image in the JSON response.
     - If image processing or text extraction  via LLM is required,use:
-        For Images API: "https://llmfoundry.straive.com/azure/openai/deployments/gpt-4o-mini/chat/completions?api-version=2025-01-01-preview"
-        For Text API: "https://llmfoundry.straive.com/openai/v1/chat/completions" and model as "gpt-4o-mini"
+        For Images API: "http://aiproxy.sanand.workers.dev/openai/v1/chat/completions"
+        For Text API: "http://aiproxy.sanand.workers.dev/openai/v1/chat/completions" and model as "gpt-4o-mini"
         Auth: Bearer {os.environ['$AIPROXY_TOKEN']}
         Handle API errors with appropriate error messages.
     write code to pass the image to the API and retrieve the relevant text.
@@ -162,7 +166,7 @@ For shell if its multiple commands, seperate them by ;
 '''
     try:
         
-        response = requests.post("https://llmfoundry.straive.com/openai/v1/chat/completions",headers={"Authorization": f"Bearer {AIPROXY_TOKEN}"},json={"model": "gpt-4o-mini", "messages": [
+        response = requests.post("http://aiproxy.sanand.workers.dev/openai/v1/chat/completions",headers={"Authorization": f"Bearer {AIPROXY_TOKEN}"},json={"model": "gpt-4o-mini", "messages": [
                 {"role": "system", "content": prompt},
                 {"role": "user", "content": task}
             ]})
@@ -182,6 +186,7 @@ For shell if its multiple commands, seperate them by ;
             raise HTTPException(status_code=400, detail="Invalid task format received from LLM")
 
         step["command"] = convert_path_to_windows(step["command"])
+        #print("Generated Code:\n" + step["command"])
         # Check for paths in the generated code
         components = step["command"].split()  # Split the generated code into components
         for component in components:
